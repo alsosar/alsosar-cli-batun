@@ -46,7 +46,9 @@ This downloads the script into memory and runs it immediately — no file saved 
 
 | Key | Action |
 |-----|--------|
-| Up/Down | Navigate list |
+| Up/Down | Navigate list (wraps to first/last page) |
+| PgUp/PgDn | Jump one page |
+| Home/End | Jump to first/last item |
 | Space | Toggle selection |
 | `/` | Search/filter |
 | Enter | Confirm and begin uninstall |

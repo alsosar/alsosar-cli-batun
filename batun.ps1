@@ -157,15 +157,6 @@ function Show-InteractiveMenu {
         }
     }
 
-    function Get-ConsoleHeight {
-        try { return $host.UI.RawUI.WindowSize.Height } catch { return 30 }
-    }
-
-    function Clip {
-        param([int]$Val, [int]$Min, [int]$Max)
-        [Math]::Max($Min, [Math]::Min($Max, $Val))
-    }
-
     function Truncate {
         param([string]$S, [int]$MaxLen)
         if ($S.Length -le $MaxLen) { return $S.PadRight($MaxLen) }
@@ -175,20 +166,14 @@ function Show-InteractiveMenu {
     do {
         $filtered = Get-Filtered -F $filterText
         $fc       = $filtered.Count
-        $consoleH = Get-ConsoleHeight
 
-        $headerLines   = 12
-        $footerLines   = 3
-        $maxVisLines   = $consoleH - $headerLines - $footerLines
-        if ($maxVisLines -lt 3) { $maxVisLines = 3 }
-
+        $pageSize = 15
         if ($fc -eq 0) { $cursor = 0; $scrollPos = 0 }
         else {
-            $cursor = (Clip -Val $cursor -Min 0 -Max ($fc - 1))
-            if ($cursor -lt $scrollPos) { $scrollPos = $cursor }
-            if ($cursor -ge $scrollPos + $maxVisLines) { $scrollPos = $cursor - $maxVisLines + 1 }
+            $pageNum = [Math]::Floor($cursor / $pageSize)
+            $scrollPos = $pageNum * $pageSize
+            $cursor = [Math]::Min($cursor, $fc - 1)
         }
-        if ($scrollPos -gt ($fc - $maxVisLines)) { $scrollPos = [Math]::Max(0, $fc - $maxVisLines) }
 
         Clear-Host
         Show-AsosarBanner
@@ -201,11 +186,11 @@ function Show-InteractiveMenu {
             Write-Host ''
         } else {
             Write-Host '  [Up/Dn] Nav  [Space] Toggle  [/] Search  [Enter] Go  [Q] Quit' -ForegroundColor DarkGray
-            Write-Host '  [A] All  [C] Clear  [R] Reverse' -ForegroundColor DarkGray
+            Write-Host '  [A] All  [C] Clear  [R] Reverse  [PgUp/PgDn] Page' -ForegroundColor DarkGray
             Write-Host ''
         }
 
-        $endIdx = [Math]::Min($scrollPos + $maxVisLines, $fc) - 1
+        $endIdx = [Math]::Min($scrollPos + $pageSize, $fc) - 1
         for ($i = $scrollPos; $i -le $endIdx; $i++) {
             $item = $filtered[$i]
             $isCurrent = ($i -eq $cursor)
@@ -233,13 +218,15 @@ function Show-InteractiveMenu {
         }
 
         $drawn = $endIdx - $scrollPos + 1
-        for ($i = $drawn; $i -lt $maxVisLines; $i++) {
+        for ($i = $drawn; $i -lt $pageSize; $i++) {
             Write-Host ''
         }
 
         $selCount = $selected.Keys.Count
+        $totalPages = [Math]::Max(1, [Math]::Ceiling($fc / $pageSize))
+        $curPage = [Math]::Floor($cursor / $pageSize) + 1
         Write-Host '----------------------------------------------------------------------' -ForegroundColor DarkGray
-        Write-Host "  Selected: $selCount / $($AllItems.Count)" -NoNewline
+        Write-Host "  Page $curPage/$totalPages  |  Selected: $selCount / $($AllItems.Count)" -NoNewline
         if ($filterText) { Write-Host "  |  Showing: $fc (filter: `"$filterText`")" -NoNewline }
         Write-Host "  |  Total apps: $($AllItems.Count)"
         Write-Host '----------------------------------------------------------------------' -ForegroundColor DarkGray
@@ -266,10 +253,16 @@ function Show-InteractiveMenu {
         }
 
         switch ($k) {
-            38 { $cursor-- }
-            40 { $cursor++ }
-            33 { $cursor -= $maxVisLines }
-            34 { $cursor += $maxVisLines }
+            38 {
+                if ($cursor -gt 0) { $cursor-- }
+                elseif ($fc -gt 0) { $cursor = $fc - 1 }
+            }
+            40 {
+                if ($cursor -lt $fc - 1) { $cursor++ }
+                else { $cursor = 0 }
+            }
+            33 { $cursor = [Math]::Max(0, $cursor - $pageSize) }
+            34 { $cursor = [Math]::Min($fc - 1, $cursor + $pageSize) }
             36 { $cursor = 0 }
             35 { $cursor = $fc - 1 }
             32 {
