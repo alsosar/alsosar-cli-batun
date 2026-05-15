@@ -177,8 +177,8 @@ function Show-InteractiveMenu {
         $fc       = $filtered.Count
         $consoleH = Get-ConsoleHeight
 
-        $headerLines   = 5
-        $footerLines   = 4
+        $headerLines   = 12
+        $footerLines   = 3
         $maxVisLines   = $consoleH - $headerLines - $footerLines
         if ($maxVisLines -lt 3) { $maxVisLines = 3 }
 
