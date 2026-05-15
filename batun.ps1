@@ -14,7 +14,7 @@ function Show-AsosarBanner {
  / ___ \ ___) | |_| |___) / ___ \|  _ <_____| |___| |___ | |_____| |_) / ___ \| . \
 /_/   \_\____/ \___/|____/_/   \_\_| \_\     \____|_____|___|    |____/_/   \_\_|\_\
                                                                                     
-                          Interactive Batch Uninstaller
+                            ASOSAR-CLI-BATUN
 '@
     Write-Host "`n$banner" -ForegroundColor Cyan
 }
