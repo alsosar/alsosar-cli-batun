@@ -19,19 +19,44 @@ try {
     $Host.UI.RawUI.WindowSize = $win
 } catch {}
 
+function Write-Frame {
+    param([string[]]$Lines, [ConsoleColor]$Color = $Host.UI.RawUI.ForegroundColor)
+
+    $w = $Host.UI.RawUI.WindowSize.Width
+    $inner = $w - 2
+
+    Write-Host ("▐" + "▀" * $inner + "▌") -ForegroundColor $Color
+    foreach ($line in $Lines) {
+        if ([string]::IsNullOrEmpty($line)) {
+            Write-Host ("▐" + " " * $inner + "▌")
+        } elseif ($line.Length -ge $inner) {
+            Write-Host ("▐" + $line.Substring(0, $inner) + "▌")
+        } else {
+            Write-Host ("▐" + $line.PadRight($inner) + "▌")
+        }
+    }
+    Write-Host ("▐" + "▄" * $inner + "▌") -ForegroundColor $Color
+    Write-Host ''
+}
+
 function Show-Banner {
-    $banner = @'
+    $art = @'
 ░█████╗░██╗░░░░░██╗░░░░░░░██╗░░░░░░░██╗██╗███╗░░██╗░██████╗░███████╗████████╗████████╗░█████╗░░█████╗░██╗░░░░░░██████╗
 ██╔══██╗██║░░░░░██║░░░░░░░██║░░██╗░░██║██║████╗░██║██╔════╝░██╔════╝╚══██╔══╝╚══██╔══╝██╔══██╗██╔══██╗██║░░░░░██╔════╝
 ██║░░╚═╝██║░░░░░██║█████╗░╚██╗████╗██╔╝██║██╔██╗██║██║░░██╗░█████╗░░░░░██║░░░░░░██║░░░██║░░██║██║░░██║██║░░░░░╚█████╗░
 ██║░░██╗██║░░░░░██║╚════╝░░████╔═████║░██║██║╚████║██║░░╚██╗██╔══╝░░░░░██║░░░░░░██║░░░██║░░██║██║░░██║██║░░░░░░╚═══██╗
 ╚█████╔╝███████╗██║░░░░░░░░╚██╔╝░╚██╔╝░██║██║░╚███║╚██████╔╝███████╗░░░██║░░░░░░██║░░░╚█████╔╝╚█████╔╝███████╗██████╔╝
 ░╚════╝░╚══════╝╚═╝░░░░░░░░░╚═╝░░░╚═╝░░╚═╝╚═╝░░╚══╝░╚═════╝░╚══════╝░░░╚═╝░░░░░░╚═╝░░░░╚════╝░░╚════╝░╚══════╝╚═════╝░
-
-                         alsosar-cli-wingettools
-                      Winget tools for Windows management
 '@
-    Write-Host $banner -ForegroundColor Cyan
+    $lines = $art -split "`r`n|`n"
+    $frameLines = @()
+    $frameLines += ''
+    foreach ($l in $lines) { $frameLines += $l }
+    $frameLines += ''
+    $frameLines += '                alsosar-cli-wingettools'
+    $frameLines += '             Winget tools for Windows management'
+    $frameLines += ''
+    Write-Frame -Lines $frameLines -Color Cyan
 }
 
 function WaitForKey {
@@ -478,6 +503,71 @@ function Run-AllUpgrades {
     WaitForKey
 }
 
+function Export-WingetPackages {
+    $desktop = [Environment]::GetFolderPath('Desktop')
+    $ts = Get-Date -Format 'yyyyMMdd-HHmmss'
+    $defaultPath = Join-Path -Path $desktop -ChildPath "winget-packages-$ts.json"
+
+    Write-Host '  Export current winget packages to a JSON file.' -ForegroundColor Yellow
+    Write-Host ''
+    Write-Host "  Path (Enter for default): " -NoNewline
+    $path = Read-Host
+    if ([string]::IsNullOrWhiteSpace($path)) { $path = $defaultPath }
+
+    Write-Host ''
+    Write-Host "  Exporting to: $path" -ForegroundColor DarkGray
+    Write-Host ''
+
+    $output = winget export -o $path --accept-source-agreements 2>&1
+    $exitCode = $LASTEXITCODE
+
+    if ($exitCode -eq 0) {
+        Write-Host '  Export complete.' -ForegroundColor Green
+    } else {
+        Write-Host '  Export failed.' -ForegroundColor Red
+        if ($output) { Write-Host "  $($output[-1])" -ForegroundColor DarkRed }
+    }
+    Write-Host ''
+    Write-Host '  Press any key to continue...'
+    WaitForKey
+}
+
+function Import-WingetPackages {
+    Write-Host '  Import and install packages from a previous export file.' -ForegroundColor Yellow
+    Write-Host ''
+    Write-Host "  Path to .json file: " -NoNewline
+    $path = Read-Host
+
+    if ([string]::IsNullOrWhiteSpace($path)) {
+        Write-Host '  Cancelled.' -ForegroundColor DarkGray
+        Write-Host ''; Write-Host '  Press any key to continue...'; WaitForKey
+        return
+    }
+    if (-not (Test-Path -LiteralPath $path)) {
+        Write-Host "  File not found: $path" -ForegroundColor Red
+        Write-Host ''; Write-Host '  Press any key to continue...'; WaitForKey
+        return
+    }
+
+    Write-Host ''
+    Write-Host "  Importing from: $path" -ForegroundColor DarkGray
+    Write-Host '  Packages already installed will be skipped.' -ForegroundColor DarkGray
+    Write-Host ''
+
+    $output = winget import -i $path --accept-source-agreements --accept-package-agreements 2>&1
+    $exitCode = $LASTEXITCODE
+
+    if ($exitCode -eq 0) {
+        Write-Host '  Import complete.' -ForegroundColor Green
+    } else {
+        Write-Host '  Import finished with issues.' -ForegroundColor Yellow
+        if ($output) { Write-Host "  $($output[-1])" -ForegroundColor DarkRed }
+    }
+    Write-Host ''
+    Write-Host '  Press any key to continue...'
+    WaitForKey
+}
+
 # ------------------------------------------------------------------
 #  MAIN
 # ------------------------------------------------------------------
@@ -503,6 +593,8 @@ while ($keepGoing) {
     Write-Host ''
     Write-Host '  [U] Uninstall Programs' -ForegroundColor Yellow
     Write-Host '  [G] Upgrade All Software (winget)' -ForegroundColor Green
+    Write-Host '  [E] Export installed packages to file' -ForegroundColor Cyan
+    Write-Host '  [I] Import packages from file' -ForegroundColor Cyan
     Write-Host '  [P] Printer Cleanup — remove all printers and ports' -ForegroundColor Red
     Write-Host '  [Q] Quit'
     Write-Host ''
@@ -511,6 +603,10 @@ while ($keepGoing) {
     switch ([char]$modeKey.Character) {
         'g' { Run-AllUpgrades; continue }
         'G' { Run-AllUpgrades; continue }
+        'e' { Export-WingetPackages; continue }
+        'E' { Export-WingetPackages; continue }
+        'i' { Import-WingetPackages; continue }
+        'I' { Import-WingetPackages; continue }
         'p' { Clear-AllPrinters; continue }
         'P' { Clear-AllPrinters; continue }
         'q' { $keepGoing = $false; continue }
