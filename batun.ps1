@@ -465,66 +465,6 @@ function Run-AllUpgrades {
     WaitForKey
 }
 
-function Get-StarfieldKey {
-    $w = $Host.UI.RawUI.WindowSize.Width
-    $h = $Host.UI.RawUI.WindowSize.Height
-    $rows = [Math]::Max(1, $h - 15)
-
-    $chars = @('·', '∙', '°', '˙')
-    $stars = 1..50 | ForEach-Object {
-        [PSCustomObject]@{
-            X  = Get-Random -Max $w
-            Y  = (Get-Random -Max $rows) + 15
-            Dx = -1, -1, 0, 0, 1, 1 | Get-Random
-            Dy = -1, 0, 1 | Get-Random
-            C  = $chars[(Get-Random -Max $chars.Count)]
-        }
-    }
-
-    $cur = @{}
-    foreach ($s in $stars) {
-        $cur["$($s.X),$($s.Y)"] = $s.C
-        $Host.UI.RawUI.CursorPosition = @{ X = $s.X; Y = $s.Y }
-        Write-Host $s.C -NoNewline -ForegroundColor DarkGray
-    }
-    $Host.UI.RawUI.CursorPosition = @{ X = 0; Y = [Math]::Min(16, $h - 1) }
-
-    do {
-        Start-Sleep -Milliseconds 100
-
-        foreach ($k in $cur.Keys) {
-            $p = $k -split ','
-            $Host.UI.RawUI.CursorPosition = @{ X = [int]$p[0]; Y = [int]$p[1] }
-            Write-Host ' ' -NoNewline
-        }
-        $cur.Clear()
-
-        foreach ($s in $stars) {
-            $s.X = ($s.X + $s.Dx + $w) % $w
-            $s.Y = ($s.Y + $s.Dy + $h) % $h
-            if ($s.Y -lt 15) { $s.Y = 15 }
-
-            if ((Get-Random -Max 15) -eq 0) {
-                $s.Dx = -1, -1, 0, 0, 1, 1 | Get-Random
-                $s.Dy = -1, 0, 1 | Get-Random
-            }
-            if ((Get-Random -Max 10) -eq 0) {
-                $s.C = $chars[(Get-Random -Max $chars.Count)]
-            }
-
-            $k = "$($s.X),$($s.Y)"
-            $cur[$k] = $s.C
-            $Host.UI.RawUI.CursorPosition = @{ X = $s.X; Y = $s.Y }
-            Write-Host $s.C -NoNewline -ForegroundColor DarkGray
-        }
-        $Host.UI.RawUI.CursorPosition = @{ X = 0; Y = [Math]::Min(16, $h - 1) }
-
-        if ($Host.UI.RawUI.KeyAvailable) {
-            return $Host.UI.RawUI.ReadKey('IncludeKeyDown,NoEcho')
-        }
-    } while ($true)
-}
-
 # ------------------------------------------------------------------
 #  MAIN
 # ------------------------------------------------------------------
@@ -554,7 +494,7 @@ while ($keepGoing) {
     Write-Host '  [Q] Quit'
     Write-Host ''
 
-    $modeKey = Get-StarfieldKey
+    $modeKey = $host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
     switch ([char]$modeKey.Character) {
         'g' { Run-AllUpgrades; continue }
         'G' { Run-AllUpgrades; continue }
