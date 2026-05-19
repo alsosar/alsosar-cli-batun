@@ -26,7 +26,7 @@ Or double-click `batun.bat` in Explorer.
 From **PowerShell 5+** (run as administrator for best results):
 
 ```
-& ([scriptblock]::Create((irm https://raw.githubusercontent.com/alsosar/alsosar-cli-wingettools/master/batun.ps1)))
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/alsosram/cli-wingettools/master/batun.ps1)))
 ```
 
 ## Options
